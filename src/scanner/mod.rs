@@ -7,7 +7,7 @@ type Expression = (Option<Anchor>, Vec<Pattern>);
 #[derive(Debug, PartialEq, Eq)]
 struct Pattern {
     sub_pattern: SubPattern,
-    repetition: Option<Repetition>,
+    repetition: Repetition,
 }
 
 // SubPattern together form Pattern
@@ -63,6 +63,7 @@ enum Repetition {
     AtLeast(usize),        // {n,}
     AtMost(usize),         // {,m}
     Between(usize, usize), // {n,m} // TODO: suggest a better name
+    None,
 }
 
 #[test]
@@ -76,15 +77,15 @@ fn t1() {
         vec![
             Pattern {
                 sub_pattern: SubPattern::Char('s'),
-                repetition: None,
+                repetition: Repetition::None,
             },
             Pattern {
                 sub_pattern: SubPattern::Dot,
-                repetition: Some(Repetition::AtLeastOnce),
+                repetition: Repetition::AtLeastOnce,
             },
             Pattern {
                 sub_pattern: SubPattern::Char('e'),
-                repetition: None,
+                repetition: Repetition::None,
             },
         ],
     );
@@ -95,18 +96,18 @@ fn t1() {
         let check_repetition = |iter: &mut Peekable<Chars<'a>>| match iter.peek() {
             Some('+') => {
                 let _ = iter.next();
-                Some(Repetition::AtLeastOnce)
+                Repetition::AtLeastOnce
             }
             Some('?') => {
                 let _ = iter.next();
-                Some(Repetition::AtMostOnce)
+                Repetition::AtMostOnce
             }
             Some('*') => {
                 let _ = iter.next();
-                Some(Repetition::ZeroOrMore)
+                Repetition::ZeroOrMore
             }
             Some('{') => unreachable!("did not implement that"),
-            _ => None,
+            _ => Repetition::None,
         };
 
         let mut anchor: Option<Anchor> = None;
