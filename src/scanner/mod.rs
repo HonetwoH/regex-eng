@@ -1,11 +1,22 @@
 // Scanner will try to make ast of the regex passed after validating it.
 
-//TODO: Expression should be a link list of the following types but try brainstorm it but the
-//TODO: problem there will be problems
+//TODO: Expression should be a link list of the following types but try brainstorm it but there will be problems
+
+struct Pattern {
+    subpattern: (SubPattern, Option<Repetition>),
+    next: Box<Pattern>,
+}
+
+// SubPattern together form Pattern
+enum SubPattern {
+    Dot,
+    Char(char),
+    InvertedChar(char),
+    BracketedSet(Sets),
+    InvertedSet(Sets),
+}
 
 enum Sets {
-    Dot, // The special wildcard
-
     AlphaNum,
     Alpha,
     Blank, // TODO: how is that different from the space
@@ -29,9 +40,10 @@ struct Range {
     end: char,
 }
 
+//TODO: need to figure out how to include Anchor in all this
 enum Anchor {
-    Start(Sets),
-    End(Sets),
+    Start(SubPattern),
+    End(SubPattern),
 }
 
 enum Repetition {
