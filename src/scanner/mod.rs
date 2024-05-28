@@ -3,7 +3,7 @@
 //TODO: Expression should be a link list of the following types but try brainstorm it but there will be problems
 
 struct Pattern {
-    subpattern: (SubPattern, Option<Repetition>),
+    sub_pattern: (SubPattern, Option<Repetition>),
     next: Box<Pattern>,
 }
 
@@ -47,11 +47,11 @@ enum Anchor {
 }
 
 enum Repetition {
-    AtmostOnce,            // ?
-    AtleastOnce,           // +
+    AtMostOnce,            // ?
+    AtLeastOnce,           // +
     ZeroOrMore,            // *     //TODO: suggest a better name
     Exactly(usize),        // {n}
-    Atleast(usize),        // {n,}
-    Atmost(usize),         // {,m}
+    AtLeast(usize),        // {n,}
+    AtMost(usize),         // {,m}
     Between(usize, usize), // {n,m} // TODO: suggest a better name
 }
