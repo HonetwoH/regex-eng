@@ -2,7 +2,7 @@
 
 //TODO: Expression should be a link list of the following types but try brainstorm it but there will be problems
 
-type Expression = Vec<Pattern>;
+type Expression = (Option<Anchor>, Vec<Pattern>);
 
 #[derive(Debug, PartialEq, Eq)]
 struct Pattern {
@@ -47,9 +47,11 @@ struct Range {
 }
 
 //TODO: need to figure out how to include Anchor in all this
+#[derive(Debug, PartialEq, Eq)]
 enum Anchor {
     Start,
     End,
+    Both,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -68,21 +70,24 @@ fn t1() {
     use std::iter::Peekable;
     use std::str::Chars;
 
-    let exp = "s.+e";
-    let ans = vec![
-        Pattern {
-            sub_pattern: SubPattern::Char('s'),
-            repetition: None,
-        },
-        Pattern {
-            sub_pattern: SubPattern::Dot,
-            repetition: Some(Repetition::AtLeastOnce),
-        },
-        Pattern {
-            sub_pattern: SubPattern::Char('e'),
-            repetition: None,
-        },
-    ];
+    let exp = "^s.+e$";
+    let ans = (
+        Some(Anchor::Both),
+        vec![
+            Pattern {
+                sub_pattern: SubPattern::Char('s'),
+                repetition: None,
+            },
+            Pattern {
+                sub_pattern: SubPattern::Dot,
+                repetition: Some(Repetition::AtLeastOnce),
+            },
+            Pattern {
+                sub_pattern: SubPattern::Char('e'),
+                repetition: None,
+            },
+        ],
+    );
 
     fn process<'a>(line: &'a str) -> Expression {
         // cannot trim the line
@@ -104,8 +109,13 @@ fn t1() {
             _ => None,
         };
 
-        let mut expression: Expression = Vec::new();
-        while let Some(ch) = iter.next() {
+        let mut anchor: Option<Anchor> = None;
+        let mut expression: Expression = (None, Vec::new());
+        if let Some('^') = iter.next() {
+            anchor = Some(Anchor::Start);
+        };
+        // this will not work for escape sequences
+        while let Some(ch) = iter.next_if(|&x| x != '$') {
             let pattern = match ch {
                 '.' => Pattern {
                     sub_pattern: SubPattern::Dot,
@@ -118,8 +128,21 @@ fn t1() {
                 },
                 _ => unreachable!("Lets see what is that: {:#?}", (ch, iter)),
             };
-            expression.push(pattern);
+            expression.1.push(pattern);
         }
+        if let Some('$') = iter.next() {
+            match anchor {
+                Some(Anchor::Start) => {
+                    anchor = Some(Anchor::Both);
+                }
+                None => {
+                    anchor = Some(Anchor::End);
+                }
+                _ => unreachable!("Some problem in anchor: {:#?}", anchor),
+            };
+        };
+
+        expression.0 = anchor;
         expression
     }
 
