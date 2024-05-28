@@ -42,8 +42,8 @@ struct Range {
 
 //TODO: need to figure out how to include Anchor in all this
 enum Anchor {
-    Start(SubPattern),
-    End(SubPattern),
+    Start,
+    End,
 }
 
 enum Repetition {
