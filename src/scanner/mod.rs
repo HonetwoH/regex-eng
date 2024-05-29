@@ -119,20 +119,35 @@ fn t1() {
             anchor = Anchor::Start;
         };
 
+        let mut escaped: bool = false;
+
         // this will not work for escape sequences
         while let Some(ch) = iter.next_if(|&x| x != '$') {
-            let pattern = match ch {
-                '.' => Pattern {
-                    sub_pattern: SubPattern::Dot,
-                    repetition: check_repetition(&mut iter),
-                },
-                // need to include other ascii char too later
-                'a'..='z' | '0'..='9' | 'A'..='Z' => Pattern {
+            let pattern: Pattern;
+            if escaped {
+                pattern = Pattern {
                     sub_pattern: SubPattern::Char(ch),
                     repetition: check_repetition(&mut iter),
-                },
-                _ => unreachable!("Lets see what is that: {:#?}", (ch, iter)),
-            };
+                }
+            } else {
+                pattern = match ch {
+                    '\\' => {
+                        // confusing but this is for escape charachters
+                        escaped = true;
+                        continue;
+                    }
+                    '.' => Pattern {
+                        sub_pattern: SubPattern::Dot,
+                        repetition: check_repetition(&mut iter),
+                    },
+                    // need to include other ascii char too later
+                    'a'..='z' | '0'..='9' | 'A'..='Z' => Pattern {
+                        sub_pattern: SubPattern::Char(ch),
+                        repetition: check_repetition(&mut iter),
+                    },
+                    _ => unreachable!("Lets see what is that: {:#?}", (ch, iter)),
+                };
+            }
             expression.1.push(pattern);
         }
 
