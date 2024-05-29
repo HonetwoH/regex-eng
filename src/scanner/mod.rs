@@ -15,27 +15,31 @@ struct Pattern {
 enum SubPattern {
     Dot,
     Char(char),
-    InvertedChar(char),
-    BracketedSet(Sets),
-    InvertedSet(Sets),
+    // InvertedChar(char), //TODO: check if this is correct according to spec
+    BracketedSet(Vec<Sets>),
+    InvertedSet(Vec<Sets>),
 }
 
 #[derive(Debug, PartialEq, Eq)]
 enum Sets {
-    AlphaNum,
+    PredefinedSets(PredefinedSet),
+    CustomRange(Range),
+    Custom(Vec<char>),
+}
+#[derive(Debug, PartialEq, Eq)]
+enum PredefinedSet {
+    AlNum, // that is the name used in `info grep`
     Alpha,
     Blank, // TODO: how is that different from the space
-    // Cntrl,// Control Sequence, will not implement
+    // Cntrl, // Control Sequence, will not implement
     Digit,
-    // Graph // Grapheme Cluster, will not implement for
+    Graph, // Graphical Cluster which is intersection of [:alnum:] and [:punct:]
     Lower,
     Upper,
-    Print,
+    Print,  // Printable character [:alnum:] [:punct:] and space character
     Punct,  // Puntuation
     Space,  // TODO: how is that different from the blank
-    XDigit, // What is that
-
-    Custom(Range),
+    XDigit, // Hexa Decimal
 }
 
 // The custom range will be like this [0-9A-Za-z]

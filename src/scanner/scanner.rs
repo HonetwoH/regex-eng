@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::str::Chars;
 
-use super::{Anchor, Expression, Pattern, Repetition, SubPattern};
+use super::{Anchor, Expression, Pattern, PredefinedSet, Repetition, Sets, SubPattern};
 
 pub(super) fn process<'a>(line: &'a str) -> Expression {
     let mut iter = line.chars().peekable();
@@ -38,6 +38,10 @@ pub(super) fn process<'a>(line: &'a str) -> Expression {
                     sub_pattern: SubPattern::Char(ch),
                     repetition: check_repetition(&mut iter),
                 },
+                '[' => Pattern {
+                    sub_pattern: scan_bracketed_expression(&mut iter),
+                    repetition: check_repetition(&mut iter),
+                },
                 _ => unreachable!("Lets see what is that: {:#?}", (ch, iter)),
             };
         }
@@ -60,6 +64,66 @@ pub(super) fn process<'a>(line: &'a str) -> Expression {
     expression.0 = anchor;
     expression
 }
+
+#[inline] // take for example [[^[0-9]] and [[:punct:]A-Mm-z ]
+fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> Sets {
+    // first consume the '['
+    let _ = iter.next();
+    let mut look_for = |c: char| -> bool {
+        if let Some('^') = iter.peek() {
+            let _ = iter.next();
+            true
+        } else {
+            false
+        }
+    };
+    // checking for inverted
+    let inverted = look_for('^');
+    // check for predefined set or custom set
+    // [[:lower:]] or [[:alnum:]] or [[:alpha:]] are predefined notice that
+    // apart from 1 variant which is `Xdigit` all are 5 character long
+    // !!!!!!!!!! very dangerous line down here
+    if look_for('[') {
+        if look_for(':') {
+            // take all the characters till :
+            let mut predefined_set_name = Vec::with_capacity(6);
+            while let Some(c) = iter.next_if(|&x| x.is_alphabetic() && x != ':') {
+                predefined_set_name.push(c);
+            }
+            let set = match_name_of_set(predefined_set_name);
+            let name_terminated_properly = look_for(':') && look_for(']');
+            if !name_terminated_properly {
+                panic!(
+                    "The expression is not valid check the if the brackets where close properly"
+                );
+            }
+        } else {
+            // this can be both Custom and Custom Range need to figure out which is which
+        }
+    }
+}
+
+#[inline]
+fn match_name_of_set(name: Vec<char>) -> PredefinedSet {
+    assert!(name.len() == 6 || name.len() == 5);
+    let name = String::from_iter(name.into_iter());
+    match name.as_str() {
+        "alnum" => PredefinedSet::AlNum,
+        "alpha" => PredefinedSet::Alpha,
+        "blank" => PredefinedSet::Blank,
+        "digit" => PredefinedSet::Digit,
+        "graph" => PredefinedSet::Graph,
+        "lower" => PredefinedSet::Lower,
+        "print" => PredefinedSet::Print,
+        "punct" => PredefinedSet::Punct,
+        "space" => PredefinedSet::Space,
+        "xdigit" => PredefinedSet::XDigit,
+        _ => unreachable!("discovered some thing while matching predefined set"),
+    }
+}
+
+// #[inline]
+// fn
 
 #[inline]
 fn check_repetition<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
