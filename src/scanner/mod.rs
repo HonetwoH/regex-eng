@@ -1,7 +1,5 @@
 // Scanner will try to make ast of the regex passed after validating it.
 
-//TODO: Expression should be a link list of the following types but try brainstorm it but there will be problems
-
 type Expression = (Anchor, Vec<Pattern>);
 
 #[derive(Debug, PartialEq, Eq)]
@@ -38,7 +36,7 @@ enum Sets {
     Custom(Range),
 }
 
-// The custom range will be like this [0-9A-Za-z]
+// The custom range will be like this [0-5] [4-9]
 #[derive(Debug, PartialEq, Eq)]
 struct Range {
     // both start and end are inclusive
@@ -46,7 +44,6 @@ struct Range {
     end: char,
 }
 
-//TODO: need to figure out how to include Anchor in all this
 #[derive(Debug, PartialEq, Eq)]
 enum Anchor {
     Start,
@@ -70,7 +67,7 @@ enum Repetition {
 mod scanner;
 
 #[test]
-fn t1() {
+fn testing_anchor_and_repetation() {
     let exp = r"^s.+e\+$";
     let ans = (
         Anchor::Both,
@@ -98,7 +95,7 @@ fn t1() {
 }
 
 #[test]
-fn t2() {
+fn testing_escape_sequence_and_anchor() {
     let exp = r"hel\++\**lo?";
     let ans = (
         Anchor::None,
