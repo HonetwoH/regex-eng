@@ -2,7 +2,7 @@
 
 //TODO: Expression should be a link list of the following types but try brainstorm it but there will be problems
 
-type Expression = (Option<Anchor>, Vec<Pattern>);
+type Expression = (Anchor, Vec<Pattern>);
 
 #[derive(Debug, PartialEq, Eq)]
 struct Pattern {
@@ -52,6 +52,7 @@ enum Anchor {
     Start,
     End,
     Both,
+    None,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -73,7 +74,7 @@ fn t1() {
 
     let exp = "^s.+e$";
     let ans = (
-        Some(Anchor::Both),
+        Anchor::Both,
         vec![
             Pattern {
                 sub_pattern: SubPattern::Char('s'),
@@ -93,6 +94,7 @@ fn t1() {
     fn process<'a>(line: &'a str) -> Expression {
         // cannot trim the line
         let mut iter = line.chars().peekable();
+
         let check_repetition = |iter: &mut Peekable<Chars<'a>>| match iter.peek() {
             Some('+') => {
                 let _ = iter.next();
@@ -110,11 +112,13 @@ fn t1() {
             _ => Repetition::None,
         };
 
-        let mut anchor: Option<Anchor> = None;
-        let mut expression: Expression = (None, Vec::new());
+        let mut anchor: Anchor = Anchor::None;
+        let mut expression: Expression = (Anchor::None, Vec::new());
+
         if let Some('^') = iter.next() {
-            anchor = Some(Anchor::Start);
+            anchor = Anchor::Start;
         };
+
         // this will not work for escape sequences
         while let Some(ch) = iter.next_if(|&x| x != '$') {
             let pattern = match ch {
@@ -131,13 +135,14 @@ fn t1() {
             };
             expression.1.push(pattern);
         }
+
         if let Some('$') = iter.next() {
             match anchor {
-                Some(Anchor::Start) => {
-                    anchor = Some(Anchor::Both);
+                Anchor::Start => {
+                    anchor = Anchor::Both;
                 }
-                None => {
-                    anchor = Some(Anchor::End);
+                Anchor::None => {
+                    anchor = Anchor::End;
                 }
                 _ => unreachable!("Some problem in anchor: {:#?}", anchor),
             };
