@@ -1,4 +1,3 @@
-use core::panic;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -15,8 +14,10 @@ pub(super) fn process<'a>(line: &'a str) -> Expression {
     };
 
     let mut escaped: bool = false;
+
     while let Some(ch) = iter.next_if(|&x| x != '$') {
         let pattern: Pattern;
+
         if escaped {
             escaped = false; //TODO: check if this fine
             pattern = Pattern {
@@ -77,13 +78,13 @@ fn check_repetition<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
             let _ = iter.next();
             Repetition::ZeroOrMore
         }
-        Some('{') => exact_repertations(iter),
+        Some('{') => exact_repetitions(iter),
         _ => Repetition::None,
     }
 }
 
 #[inline]
-fn exact_repertations<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
+fn exact_repetitions<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
     let mut number_string = [String::new(), String::new()];
     let mut current_number = 0;
     let mut is_exact = true;
@@ -108,20 +109,22 @@ fn exact_repertations<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
     if is_exact && current_number == 0 && number_string[1].is_empty() {
         Repetition::Exactly(number_string[0].parse::<usize>().unwrap())
     } else if current_number == 1 {
-        if number_string[0].is_empty() && !number_string[1].is_empty() {
-            Repetition::AtMost(number_string[1].parse::<usize>().unwrap())
-        } else if !number_string[0].is_empty() && !number_string[1].is_empty() {
-            Repetition::Between(
+        match [number_string[0].is_empty(), number_string[1].is_empty()] {
+            [true, false] => Repetition::AtMost(number_string[1].parse::<usize>().unwrap()),
+
+            [false, false] => Repetition::InRange(
                 number_string[0].parse::<usize>().unwrap(),
                 number_string[1].parse::<usize>().unwrap(),
-            )
-        } else if !number_string[0].is_empty() && number_string[1].is_empty() {
-            Repetition::AtLeast(number_string[0].parse::<usize>().unwrap())
-        } else {
-            panic!(
-                "Found something interesting:\n{}\n {:#?}",
-                current_number, number_string
-            );
+            ),
+
+            [false, true] => Repetition::AtLeast(number_string[0].parse::<usize>().unwrap()),
+
+            _ => {
+                panic!(
+                    "Found something interesting:\n{}\n {:#?}",
+                    current_number, number_string
+                );
+            }
         }
     } else {
         panic!(
@@ -131,51 +134,59 @@ fn exact_repertations<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
     }
 }
 
-#[test]
-fn test_exact_repetation_1() {
-    let expr = "1{25}";
-    let ans = (
-        Anchor::None,
-        vec![Pattern {
-            sub_pattern: SubPattern::Char('1'),
-            repetition: Repetition::Exactly(25),
-        }],
-    );
-    assert_eq!(ans, process(expr));
-}
-#[test]
-fn test_exact_repetation_2() {
-    let expr = "1{,25}";
-    let ans = (
-        Anchor::None,
-        vec![Pattern {
-            sub_pattern: SubPattern::Char('1'),
-            repetition: Repetition::AtMost(25),
-        }],
-    );
-    assert_eq!(ans, process(expr));
-}
-#[test]
-fn test_exact_repetation_3() {
-    let expr = "1{25,}";
-    let ans = (
-        Anchor::None,
-        vec![Pattern {
-            sub_pattern: SubPattern::Char('1'),
-            repetition: Repetition::AtLeast(25),
-        }],
-    );
-    assert_eq!(ans, process(expr));
-}
-#[test]
-fn test_exact_repetation_4() {
-    let expr = "1{2,25}";
-    let ans = (
-        Anchor::None,
-        vec![Pattern {
-            sub_pattern: SubPattern::Char('1'),
-            repetition: Repetition::Between(2, 25),
-        }],
-    );
-    assert_eq!(ans, process(expr));
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_exact_repetition_1() {
+        let expr = "1{25}";
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::Char('1'),
+                repetition: Repetition::Exactly(25),
+            }],
+        );
+        assert_eq!(ans, process(expr));
+    }
+
+    #[test]
+    fn test_exact_repetition_2() {
+        let expr = "1{,25}";
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::Char('1'),
+                repetition: Repetition::AtMost(25),
+            }],
+        );
+        assert_eq!(ans, process(expr));
+    }
+
+    #[test]
+    fn test_exact_repetition_3() {
+        let expr = "1{25,}";
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::Char('1'),
+                repetition: Repetition::AtLeast(25),
+            }],
+        );
+        assert_eq!(ans, process(expr));
+    }
+
+    #[test]
+    fn test_exact_repetition_4() {
+        let expr = "1{2,25}";
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::Char('1'),
+                repetition: Repetition::InRange(2, 25),
+            }],
+        );
+        assert_eq!(ans, process(expr));
+    }
 }

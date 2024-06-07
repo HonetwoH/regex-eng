@@ -25,13 +25,13 @@ enum Sets {
     Blank, // TODO: how is that different from the space
     // Cntrl,// Control Sequence, will not implement
     Digit,
-    // Graph // Grapheme Cluster, will not implement for
+    Graph, // Graphical, will not implement
     Lower,
     Upper,
     Print,
-    Punct,  // Puntuation
-    Space,  // TODO: how is that different from the blank
-    XDigit, // What is that
+    Punct, // Puntuation
+    Space, // TODO: how is that different from the blank
+    XDigit,
 
     Custom(Range),
 }
@@ -56,11 +56,11 @@ enum Anchor {
 enum Repetition {
     AtMostOnce,            // ?
     AtLeastOnce,           // +
-    ZeroOrMore,            // *     //TODO: suggest a better name
+    ZeroOrMore,            // *
     Exactly(usize),        // {n}
     AtLeast(usize),        // {n,}
     AtMost(usize),         // {,m}
-    Between(usize, usize), // {n,m} // TODO: suggest a better name
+    InRange(usize, usize), // {n,m}
     None,
 }
 
