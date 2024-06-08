@@ -26,6 +26,7 @@ enum Sets {
     CustomRange(Range),
     Custom(Vec<char>),
 }
+
 #[derive(Debug, PartialEq, Eq)]
 enum PredefinedSet {
     AlNum, // that is the name used in `info grep`
