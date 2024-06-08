@@ -65,12 +65,13 @@ pub(super) fn process<'a>(line: &'a str) -> Expression {
     expression
 }
 
-#[inline] // take for example [[^[0-9]] and [[:punct:]A-Mm-z ]
-fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> Sets {
+#[inline] // take for example [[:punct:]A-Mm-z ]
+fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> SubPattern {
     // first consume the '['
     let _ = iter.next();
+
     let mut look_for = |c: char| -> bool {
-        if let Some('^') = iter.peek() {
+        if let Some(c) = iter.peek() {
             let _ = iter.next();
             true
         } else {
@@ -122,9 +123,6 @@ fn match_name_of_set(name: Vec<char>) -> PredefinedSet {
     }
 }
 
-// #[inline]
-// fn
-
 #[inline]
 fn check_repetition<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
     match iter.peek() {
@@ -143,4 +141,76 @@ fn check_repetition<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
         Some('{') => unreachable!("did not implement that"),
         _ => Repetition::None,
     }
+}
+
+#[test]
+fn test_bracketed_expression1() {
+    let exp = r"[[:alnum:]]";
+    let ans = (
+        Anchor::None,
+        vec![Pattern {
+            sub_pattern: SubPattern::BracketedSet(vec![Sets::PredefinedSets(PredefinedSet::AlNum)]),
+            repetition: Repetition::None,
+        }],
+    );
+
+    assert_eq!(process(exp), ans);
+}
+
+#[test]
+fn test_bracketed_expression2() {
+    let exp = r"[[:alnum:][:xdigit:]]";
+    let ans = (
+        Anchor::None,
+        vec![Pattern {
+            sub_pattern: SubPattern::BracketedSet(vec![
+                Sets::PredefinedSets(PredefinedSet::AlNum),
+                Sets::PredefinedSets(PredefinedSet::XDigit),
+            ]),
+            repetition: Repetition::None,
+        }],
+    );
+
+    assert_eq!(process(exp), ans);
+}
+
+#[test]
+fn test_bracketed_expression3() {
+    let exp = r"[aBc09]";
+    let ans = (
+        Anchor::None,
+        vec![Pattern {
+            sub_pattern: SubPattern::BracketedSet(vec![Sets::Custom(vec![
+                'a', 'B', 'c', '0', '9',
+            ])]),
+            repetition: Repetition::None,
+        }],
+    );
+    assert_eq!(process(exp), ans);
+}
+
+#[test]
+fn test_bracketed_expression4() {
+    let exp = r"[a-zA-Z0-9]";
+    let ans = (
+        Anchor::None,
+        vec![Pattern {
+            sub_pattern: SubPattern::BracketedSet(vec![
+                Sets::CustomRange(super::Range {
+                    start: 'a',
+                    end: 'z',
+                }),
+                Sets::CustomRange(super::Range {
+                    start: 'A',
+                    end: 'Z',
+                }),
+                Sets::CustomRange(super::Range {
+                    start: '0',
+                    end: '9',
+                }),
+            ]),
+            repetition: Repetition::None,
+        }],
+    );
+    assert_eq!(process(exp), ans);
 }

@@ -26,6 +26,7 @@ enum Sets {
     CustomRange(Range),
     Custom(Vec<char>),
 }
+
 #[derive(Debug, PartialEq, Eq)]
 enum PredefinedSet {
     AlNum, // that is the name used in `info grep`
@@ -50,7 +51,6 @@ struct Range {
     end: char,
 }
 
-//TODO: need to figure out how to include Anchor in all this
 #[derive(Debug, PartialEq, Eq)]
 enum Anchor {
     Start,
