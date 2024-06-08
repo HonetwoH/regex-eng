@@ -1,0 +1,112 @@
+
+running 1 test
+in test 1
+first 1: Peekable {
+    iter: Chars([
+        '[',
+        ':',
+        'a',
+        'l',
+        'n',
+        'u',
+        'm',
+        ':',
+        ']',
+        ']',
+    ]),
+    peeked: None,
+}
+after inversion check: Peekable {
+    iter: Chars([
+        ':',
+        'a',
+        'l',
+        'n',
+        'u',
+        'm',
+        ':',
+        ']',
+        ']',
+    ]),
+    peeked: Some(
+        Some(
+            '[',
+        ),
+    ),
+}
+after while check : Peekable {
+    iter: Chars([
+        ':',
+        'a',
+        'l',
+        'n',
+        'u',
+        'm',
+        ':',
+        ']',
+        ']',
+    ]),
+    peeked: Some(
+        Some(
+            '[',
+        ),
+    ),
+}
+after [ check : Peekable {
+    iter: Chars([
+        ':',
+        'a',
+        'l',
+        'n',
+        'u',
+        'm',
+        ':',
+        ']',
+        ']',
+    ]),
+    peeked: None,
+}
+after : check : Peekable {
+    iter: Chars([
+        'a',
+        'l',
+        'n',
+        'u',
+        'm',
+        ':',
+        ']',
+        ']',
+    ]),
+    peeked: None,
+}
+after alnum check : Peekable {
+    iter: Chars([
+        ']',
+        ']',
+    ]),
+    peeked: Some(
+        Some(
+            ':',
+        ),
+    ),
+}
+after :] check : Peekable {
+    iter: Chars([
+        ']',
+    ]),
+    peeked: None,
+}
+sets: [
+    PredefinedSets(
+        AlNum,
+    ),
+]
+test scanner::scanner::test_bracketed_expression1 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
