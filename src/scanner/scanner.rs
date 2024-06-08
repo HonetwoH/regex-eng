@@ -1,3 +1,4 @@
+use core::panic;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -17,7 +18,7 @@ pub(super) fn process<'a>(line: &'a str) -> Expression {
     while let Some(ch) = iter.next_if(|&x| x != '$') {
         let pattern: Pattern;
         if escaped {
-            escaped = false; //TODO: check if this fine
+            escaped = false;
             pattern = Pattern {
                 sub_pattern: SubPattern::Char(ch),
                 repetition: check_repetition(&mut iter),
@@ -25,7 +26,6 @@ pub(super) fn process<'a>(line: &'a str) -> Expression {
         } else {
             pattern = match ch {
                 '\\' => {
-                    // confusing but this is for escape charachters
                     escaped = true;
                     continue;
                 }
@@ -70,37 +70,58 @@ fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> SubPattern {
     // first consume the '['
     let _ = iter.next();
 
-    let mut look_for = |c: char| -> bool {
-        if let Some(c) = iter.peek() {
-            let _ = iter.next();
-            true
+    let mut look_for = |ch: char| {
+        if let Some(temp) = iter.peek() {
+            if *temp == ch {
+                let _ = iter.next();
+                true
+            } else {
+                false
+            }
         } else {
-            false
+            panic!("The regex ended here, it is invalid");
         }
     };
+
     // checking for inverted
     let inverted = look_for('^');
-    // check for predefined set or custom set
-    // [[:lower:]] or [[:alnum:]] or [[:alpha:]] are predefined notice that
-    // apart from 1 variant which is `Xdigit` all are 5 character long
-    // !!!!!!!!!! very dangerous line down here
-    if look_for('[') {
-        if look_for(':') {
-            // take all the characters till :
-            let mut predefined_set_name = Vec::with_capacity(6);
-            while let Some(c) = iter.next_if(|&x| x.is_alphabetic() && x != ':') {
-                predefined_set_name.push(c);
-            }
-            let set = match_name_of_set(predefined_set_name);
-            let name_terminated_properly = look_for(':') && look_for(']');
-            if !name_terminated_properly {
-                panic!(
+
+    // container for all sets in the bracket
+    let mut sets: Vec<Sets> = Vec::new();
+
+    while !look_for(']') {
+        // check for predefined set or custom set
+        // [[:lower:]] or [[:alnum:]] or [[:alpha:]] are predefined notice that
+        // apart from 1 variant which is `Xdigit` all are 5 character long
+        // !!!!!!!!!! very dangerous line down here
+        if look_for('[') {
+            if look_for(':') {
+                // take all the characters till :
+                let mut predefined_set_name = Vec::with_capacity(6);
+                while let Some(c) = iter.next_if(|&x| x.is_alphabetic() && x != ':') {
+                    predefined_set_name.push(c);
+                }
+
+                let set = match_name_of_set(predefined_set_name);
+                let name_terminated_properly = look_for(':') && look_for(']');
+
+                if !name_terminated_properly {
+                    panic!(
                     "The expression is not valid check the if the brackets where close properly"
-                );
+                    );
+                }
+
+                sets.push(Sets::PredefinedSets(set));
+            } else {
+                // this can be both Custom and Custom Range need to figure out which is which
             }
-        } else {
-            // this can be both Custom and Custom Range need to figure out which is which
         }
+    }
+
+    if inverted {
+        SubPattern::InvertedSet(sets)
+    } else {
+        SubPattern::BracketedSet(sets)
     }
 }
 
