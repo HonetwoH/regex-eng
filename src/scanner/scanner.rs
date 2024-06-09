@@ -2,7 +2,7 @@ use core::panic;
 use std::iter::Peekable;
 use std::str::Chars;
 
-use super::{Anchor, Expression, Pattern, PredefinedSet, Repetition, Sets, SubPattern};
+use super::{Anchor, Expression, Pattern, PredefinedSet, Range, Repetition, Sets, SubPattern};
 
 pub(super) fn process<'a>(line: &'a str) -> Expression {
     let mut iter = line.chars().peekable();
@@ -81,9 +81,6 @@ fn look_for<'a>(ch: char, iter: &mut Peekable<Chars<'a>>) -> bool {
 
 #[inline] // take for example [[:punct:]A-Mm-z ]
 fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> SubPattern {
-    // first consume the '[' this is already consumed
-    // let _ = iter.next();
-
     // checking for inverted
     let inverted = look_for('^', iter);
 
@@ -114,17 +111,47 @@ fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> SubPattern {
                 }
 
                 sets.push(Sets::PredefinedSets(set));
-            } else {
-                // this can be both Custom and Custom Range need to figure out which is which
+            }
+        } else {
+            // panic!("Reached here");
+            // this can be both Custom and Custom Range need to figure out which is which
+            if let Some(maybe_lower) = iter.next() {
+                if look_for('-', iter) {
+                    let maybe_upper = iter.next().unwrap();
+                    sets.push(Sets::CustomRange(Range {
+                        start: maybe_lower,
+                        end: maybe_upper,
+                    }));
+                } else {
+                    if let Some(a_char) = iter.next_if(|&x| x != ']') {
+                        match sets.last_mut() {
+                            Some(Sets::Custom(x)) => {
+                                x.push(maybe_lower);
+                                x.push(a_char);
+                            }
+                            _ => sets.push(Sets::Custom(vec![maybe_lower, a_char])),
+                        }
+                    } else {
+                        match sets.last_mut() {
+                            Some(Sets::Custom(x)) => {
+                                x.push(maybe_lower);
+                            }
+                            _ => sets.push(Sets::Custom(vec![maybe_lower])),
+                        }
+                    }
+                }
             }
         }
-
+        //TODO: can this be removed ?
         if let Some(x) = iter.peek() {
             if *x == ']' {
                 let _ = iter.next();
                 break;
             }
         }
+        // if look_for(']', iter) {
+        //     break;
+        // }
     }
 
     if inverted {
@@ -175,7 +202,8 @@ fn check_repetition<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::process;
+    use crate::scanner::*;
 
     #[test]
     fn test_bracketed_expression1() {
@@ -227,7 +255,23 @@ mod test {
 
         assert_eq!(process(exp), ans);
     }
-    /*
+    #[test]
+    fn test_inverted_bracketed_expression3() {
+        let exp = r"[^[:alnum:][:xdigit:][:punct:]]";
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::InvertedSet(vec![
+                    Sets::PredefinedSets(PredefinedSet::AlNum),
+                    Sets::PredefinedSets(PredefinedSet::XDigit),
+                    Sets::PredefinedSets(PredefinedSet::Punct),
+                ]),
+                repetition: Repetition::None,
+            }],
+        );
+
+        assert_eq!(process(exp), ans);
+    }
     #[test]
     fn test_bracketed_expression3() {
         let exp = r"[aBc09]";
@@ -244,21 +288,37 @@ mod test {
     }
 
     #[test]
-    fn test_bracketed_expression4() {
+    fn test_bracketed_expression_range_simple() {
+        let exp = r"[a-z]";
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::BracketedSet(vec![Sets::CustomRange(Range {
+                    start: 'a',
+                    end: 'z',
+                })]),
+                repetition: Repetition::None,
+            }],
+        );
+        assert_eq!(process(exp), ans);
+    }
+
+    #[test]
+    fn test_bracketed_expression_range_compound() {
         let exp = r"[a-zA-Z0-9]";
         let ans = (
             Anchor::None,
             vec![Pattern {
                 sub_pattern: SubPattern::BracketedSet(vec![
-                    Sets::CustomRange(super::Range {
+                    Sets::CustomRange(Range {
                         start: 'a',
                         end: 'z',
                     }),
-                    Sets::CustomRange(super::Range {
+                    Sets::CustomRange(Range {
                         start: 'A',
                         end: 'Z',
                     }),
-                    Sets::CustomRange(super::Range {
+                    Sets::CustomRange(Range {
                         start: '0',
                         end: '9',
                     }),
@@ -268,5 +328,27 @@ mod test {
         );
         assert_eq!(process(exp), ans);
     }
-    */
+    #[test]
+    fn all_bracketed_expression_together() {
+        let exp = r"[^0-9a-f[:space:]xX]+";
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::InvertedSet(vec![
+                    Sets::CustomRange(Range {
+                        start: '0',
+                        end: '9',
+                    }),
+                    Sets::CustomRange(Range {
+                        start: 'a',
+                        end: 'f',
+                    }),
+                    Sets::PredefinedSets(PredefinedSet::Space),
+                    Sets::Custom(vec!['x', 'X']),
+                ]),
+                repetition: Repetition::AtLeastOnce,
+            }],
+        );
+        assert_eq!(process(exp), ans);
+    }
 }
