@@ -71,69 +71,74 @@ enum Repetition {
 
 mod scanner;
 
-#[test]
-fn testing_anchor_and_repetation() {
-    let exp = r"^s.+e\+$";
-    let ans = (
-        Anchor::Both,
-        vec![
-            Pattern {
-                sub_pattern: SubPattern::Char('s'),
-                repetition: Repetition::None,
-            },
-            Pattern {
-                sub_pattern: SubPattern::Dot,
-                repetition: Repetition::AtLeastOnce,
-            },
-            Pattern {
-                sub_pattern: SubPattern::Char('e'),
-                repetition: Repetition::None,
-            },
-            Pattern {
-                sub_pattern: SubPattern::Char('+'),
-                repetition: Repetition::None,
-            },
-        ],
-    );
+#[cfg(test)]
+mod test {
+    use super::*;
 
-    assert_eq!(scanner::process(exp), ans);
-}
+    #[test]
+    fn testing_anchor_and_repetation() {
+        let exp = r"^s.+e\+$";
+        let ans = (
+            Anchor::Both,
+            vec![
+                Pattern {
+                    sub_pattern: SubPattern::Char('s'),
+                    repetition: Repetition::None,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::Dot,
+                    repetition: Repetition::AtLeastOnce,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::Char('e'),
+                    repetition: Repetition::None,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::Char('+'),
+                    repetition: Repetition::None,
+                },
+            ],
+        );
 
-#[test]
-fn testing_escape_sequence_and_anchor() {
-    let exp = r"hel\++\**lo?";
-    let ans = (
-        Anchor::None,
-        vec![
-            Pattern {
-                sub_pattern: SubPattern::Char('h'),
-                repetition: Repetition::None,
-            },
-            Pattern {
-                sub_pattern: SubPattern::Char('e'),
-                repetition: Repetition::None,
-            },
-            Pattern {
-                sub_pattern: SubPattern::Char('l'),
-                repetition: Repetition::None,
-            },
-            Pattern {
-                sub_pattern: SubPattern::Char('+'),
-                repetition: Repetition::AtLeastOnce,
-            },
-            Pattern {
-                sub_pattern: SubPattern::Char('*'),
-                repetition: Repetition::ZeroOrMore,
-            },
-            Pattern {
-                sub_pattern: SubPattern::Char('l'),
-                repetition: Repetition::None,
-            },
-            Pattern {
-                sub_pattern: SubPattern::Char('o'),
-                repetition: Repetition::AtMostOnce,
-            },
-        ],
-    );
-    assert_eq!(scanner::process(exp), ans);
+        assert_eq!(scanner::process(exp), ans);
+    }
+
+    #[test]
+    fn testing_escape_sequence_and_anchor() {
+        let exp = r"hel\++\**lo?";
+        let ans = (
+            Anchor::None,
+            vec![
+                Pattern {
+                    sub_pattern: SubPattern::Char('h'),
+                    repetition: Repetition::None,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::Char('e'),
+                    repetition: Repetition::None,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::Char('l'),
+                    repetition: Repetition::None,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::Char('+'),
+                    repetition: Repetition::AtLeastOnce,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::Char('*'),
+                    repetition: Repetition::ZeroOrMore,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::Char('l'),
+                    repetition: Repetition::None,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::Char('o'),
+                    repetition: Repetition::AtMostOnce,
+                },
+            ],
+        );
+        assert_eq!(scanner::process(exp), ans);
+    }
 }

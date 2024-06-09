@@ -3,7 +3,7 @@ use std::str::Chars;
 
 use super::{Anchor, Expression, Pattern, PredefinedSet, Range, Repetition, Sets, SubPattern};
 
-pub(super) fn process<'a>(line: &'a str) -> Expression {
+pub(super) fn process(line: &'_ str) -> Expression {
     let mut iter = line.chars().peekable();
     let mut expression: Expression = (Anchor::None, Vec::new());
 
@@ -67,7 +67,7 @@ pub(super) fn process<'a>(line: &'a str) -> Expression {
 }
 
 #[inline]
-fn look_for<'a>(ch: char, iter: &mut Peekable<Chars<'a>>) -> bool {
+fn look_for(ch: char, iter: &mut Peekable<Chars<'_>>) -> bool {
     if let Some(temp) = iter.peek() {
         if *temp == ch {
             let _ = iter.next();
@@ -81,14 +81,14 @@ fn look_for<'a>(ch: char, iter: &mut Peekable<Chars<'a>>) -> bool {
 }
 
 #[inline] // take for example [[:punct:]A-Mm-z ]
-fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> SubPattern {
+fn scan_bracketed_expression(iter: &mut Peekable<Chars<'_>>) -> SubPattern {
     // checking for inverted
     let inverted = look_for('^', iter);
 
     // container for all sets in the bracket
     let mut sets: Vec<Sets> = Vec::new();
 
-    while let Some(_) = iter.peek() {
+    while iter.peek().is_some() {
         // check for predefined set or custom set
         // [[:lower:]] or [[:alnum:]] or [[:alpha:]] are predefined notice that
         // apart from 1 variant which is `Xdigit` all are 5 character long
@@ -136,9 +136,9 @@ fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> SubPattern {
                 _ => sets.push(Sets::Custom(vec!['-'])),
             }
         } else {
-            // panic!("Reached here");
             // this can be both Custom and Custom Range need to figure out which is which
             if let Some(maybe_lower) = iter.next() {
+                // this branch check for custom range
                 if look_for('-', iter) {
                     let maybe_upper = iter.next().unwrap();
                     sets.push(Sets::CustomRange(Range {
@@ -146,6 +146,7 @@ fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> SubPattern {
                         end: maybe_upper,
                     }));
                 } else {
+                    // this branch check for custom set
                     if let Some(a_char) = iter.next_if(|&x| x != ']') {
                         match sets.last_mut() {
                             Some(Sets::Custom(x)) => {
@@ -181,7 +182,7 @@ fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> SubPattern {
 #[inline]
 fn match_name_of_set(name: Vec<char>) -> PredefinedSet {
     assert!(name.len() == 6 || name.len() == 5);
-    let name = String::from_iter(name.into_iter());
+    let name = String::from_iter(name);
 
     match name.as_str() {
         "alnum" => PredefinedSet::AlNum,
@@ -199,7 +200,7 @@ fn match_name_of_set(name: Vec<char>) -> PredefinedSet {
 }
 
 #[inline]
-fn check_repetition<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
+fn check_repetition(iter: &mut Peekable<Chars<'_>>) -> Repetition {
     match iter.peek() {
         Some('+') => {
             let _ = iter.next();
@@ -219,13 +220,13 @@ fn check_repetition<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
 }
 
 #[inline]
-fn exact_repetitions<'a>(iter: &mut Peekable<Chars<'a>>) -> Repetition {
+fn exact_repetitions(iter: &mut Peekable<Chars<'_>>) -> Repetition {
     let mut number_string = [String::new(), String::new()];
     let mut current_number = 0;
     let mut is_exact = true;
 
     let _ = iter.next();
-    while let Some(n) = iter.next() {
+    for n in iter.by_ref() {
         match n {
             ',' => {
                 current_number += 1;
