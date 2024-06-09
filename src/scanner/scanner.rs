@@ -124,7 +124,14 @@ fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> SubPattern {
                     todo!("open equivalence class");
                 }
 
-                _ => panic!("This shouldn't be here: {:#?}", &iter),
+                _ => panic!("This shouldn't end here: {:#?}", &iter),
+            }
+        } else if look_for('-', iter) {
+            match sets.last_mut() {
+                Some(Sets::Custom(x)) => {
+                    x.push('-');
+                }
+                _ => sets.push(Sets::Custom(vec!['-'])),
             }
         } else {
             // panic!("Reached here");
@@ -369,6 +376,64 @@ mod test {
                     Sets::Custom(vec!['x', 'X']),
                 ]),
                 repetition: Repetition::AtLeastOnce,
+            }],
+        );
+
+        assert_eq!(process(exp), ans);
+    }
+
+    #[test]
+    fn test_bracketed_expression_range_compound2() {
+        let exp = r"[-a-zA-Z0-9]";
+
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::BracketedSet(vec![
+                    Sets::Custom(vec!['-']),
+                    Sets::CustomRange(Range {
+                        start: 'a',
+                        end: 'z',
+                    }),
+                    Sets::CustomRange(Range {
+                        start: 'A',
+                        end: 'Z',
+                    }),
+                    Sets::CustomRange(Range {
+                        start: '0',
+                        end: '9',
+                    }),
+                ]),
+                repetition: Repetition::None,
+            }],
+        );
+
+        assert_eq!(process(exp), ans);
+    }
+
+    #[test]
+    fn test_bracketed_expression_range_compound3() {
+        let exp = r"[a-zA-Z0-9c-]";
+
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::BracketedSet(vec![
+                    Sets::CustomRange(Range {
+                        start: 'a',
+                        end: 'z',
+                    }),
+                    Sets::CustomRange(Range {
+                        start: 'A',
+                        end: 'Z',
+                    }),
+                    Sets::CustomRange(Range {
+                        start: '0',
+                        end: '9',
+                    }),
+                    Sets::Custom(vec!['c', '-']),
+                ]),
+                repetition: Repetition::None,
             }],
         );
 
