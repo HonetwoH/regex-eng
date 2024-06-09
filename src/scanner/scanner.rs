@@ -118,6 +118,7 @@ fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> SubPattern {
             if let Some(maybe_lower) = iter.next() {
                 if look_for('-', iter) {
                     let maybe_upper = iter.next().unwrap();
+
                     sets.push(Sets::CustomRange(Range {
                         start: maybe_lower,
                         end: maybe_upper,
@@ -142,16 +143,10 @@ fn scan_bracketed_expression<'a>(iter: &mut Peekable<Chars<'a>>) -> SubPattern {
                 }
             }
         }
-        //TODO: can this be removed ?
-        if let Some(x) = iter.peek() {
-            if *x == ']' {
-                let _ = iter.next();
-                break;
-            }
+
+        if look_for(']', iter) {
+            break;
         }
-        // if look_for(']', iter) {
-        //     break;
-        // }
     }
 
     if inverted {
@@ -328,6 +323,7 @@ mod test {
         );
         assert_eq!(process(exp), ans);
     }
+
     #[test]
     fn all_bracketed_expression_together() {
         let exp = r"[^0-9a-f[:space:]xX]+";
