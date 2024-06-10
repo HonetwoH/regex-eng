@@ -1,3 +1,4 @@
+use core::panic;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -80,6 +81,28 @@ fn look_for(ch: char, iter: &mut Peekable<Chars<'_>>) -> bool {
     }
 }
 
+#[inline]
+fn get_predefined_set<'a>(iter: &mut Peekable<Chars<'_>>) -> Sets {
+    // consuming ':'
+    let _ = iter.next();
+
+    // take all the characters till :
+    let mut predefined_set_name = Vec::with_capacity(6);
+
+    while let Some(c) = iter.next_if(|&x| x.is_alphabetic() && x != ':') {
+        predefined_set_name.push(c);
+    }
+
+    let set = match_name_of_set(predefined_set_name);
+    let name_terminated_properly = look_for(':', iter) && look_for(']', iter);
+
+    if !name_terminated_properly {
+        panic!("The expression is not valid check the if the brackets where close properly");
+    }
+
+    Sets::PredefinedSets(set)
+}
+
 #[inline] // take for example [[:punct:]A-Mm-z ]
 fn scan_bracketed_expression(iter: &mut Peekable<Chars<'_>>) -> SubPattern {
     // checking for inverted
@@ -95,28 +118,7 @@ fn scan_bracketed_expression(iter: &mut Peekable<Chars<'_>>) -> SubPattern {
         // !!!!!!!!!! very dangerous line down here
         if look_for('[', iter) {
             match iter.peek() {
-                Some(':') => {
-                    // consuming ':'
-                    let _ = iter.next();
-
-                    // take all the characters till :
-                    let mut predefined_set_name = Vec::with_capacity(6);
-
-                    while let Some(c) = iter.next_if(|&x| x.is_alphabetic() && x != ':') {
-                        predefined_set_name.push(c);
-                    }
-
-                    let set = match_name_of_set(predefined_set_name);
-                    let name_terminated_properly = look_for(':', iter) && look_for(']', iter);
-
-                    if !name_terminated_properly {
-                        panic!(
-                        "The expression is not valid check the if the brackets where close properly"
-                        );
-                    }
-
-                    sets.push(Sets::PredefinedSets(set));
-                }
+                Some(':') => sets.push(get_predefined_set(iter)),
 
                 Some('.') => {
                     todo!("collating elements");
@@ -127,6 +129,17 @@ fn scan_bracketed_expression(iter: &mut Peekable<Chars<'_>>) -> SubPattern {
                 }
 
                 _ => panic!("This shouldn't end here: {:#?}", &iter),
+            }
+        } else if look_for('\\', iter) {
+            if let Some(c) = iter.next() {
+                match sets.last_mut() {
+                    Some(Sets::Custom(x)) => {
+                        x.push(c);
+                    }
+                    _ => sets.push(Sets::Custom(vec![c])),
+                }
+            } else {
+                panic!("invalid escaping: {:#?}", &iter);
             }
         } else if look_for('-', iter) {
             match sets.last_mut() {
@@ -538,6 +551,93 @@ mod test {
                         end: '9',
                     }),
                     Sets::Custom(vec!['-']),
+                ]),
+                repetition: Repetition::None,
+            }],
+        );
+
+        assert_eq!(process(exp), ans);
+    }
+
+    #[test]
+    fn test_bracketed_expression_range_compound4() {
+        let exp = r"[a-eA-Z0-9ac-]";
+
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::BracketedSet(vec![
+                    Sets::CustomRange(Range {
+                        start: 'a',
+                        end: 'e',
+                    }),
+                    Sets::CustomRange(Range {
+                        start: 'A',
+                        end: 'Z',
+                    }),
+                    Sets::CustomRange(Range {
+                        start: '0',
+                        end: '9',
+                    }),
+                    Sets::Custom(vec!['a', 'c', '-']),
+                ]),
+                repetition: Repetition::None,
+            }],
+        );
+
+        assert_eq!(process(exp), ans);
+    }
+
+    #[test]
+    fn test_bracketed_expression_escaping1() {
+        let exp = r"[a-eA-Z0-9\\ac-]";
+
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::BracketedSet(vec![
+                    Sets::CustomRange(Range {
+                        start: 'a',
+                        end: 'e',
+                    }),
+                    Sets::CustomRange(Range {
+                        start: 'A',
+                        end: 'Z',
+                    }),
+                    Sets::CustomRange(Range {
+                        start: '0',
+                        end: '9',
+                    }),
+                    Sets::Custom(vec!['\\', 'a', 'c', '-']),
+                ]),
+                repetition: Repetition::None,
+            }],
+        );
+
+        assert_eq!(process(exp), ans);
+    }
+
+    #[test]
+    fn test_bracketed_expression_escaping2() {
+        let exp = r"[a-eA-Z0-9\]ac-]";
+
+        let ans = (
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::BracketedSet(vec![
+                    Sets::CustomRange(Range {
+                        start: 'a',
+                        end: 'e',
+                    }),
+                    Sets::CustomRange(Range {
+                        start: 'A',
+                        end: 'Z',
+                    }),
+                    Sets::CustomRange(Range {
+                        start: '0',
+                        end: '9',
+                    }),
+                    Sets::Custom(vec![']', 'a', 'c', '-']),
                 ]),
                 repetition: Repetition::None,
             }],
