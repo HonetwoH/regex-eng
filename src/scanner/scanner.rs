@@ -8,6 +8,14 @@ pub(super) fn process(line: &'_ str) -> Expression {
     let mut iter = line.chars().peekable();
     let mut expression: Expression = (Anchor::None, Vec::new());
 
+    const NORMAL_CHAR: [char; 80] = [
+        ' ', '!', '"', '#', '%', '&', '\'', ',', '-', '/', '0', '1', '2', '3', '4', '5', '6', '7',
+        '8', '9', ':', ';', '<', '=', '>', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '_', '`',
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
+        's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    ];
+
     let mut anchor: Anchor = Anchor::None;
     if let Some('^') = iter.peek() {
         anchor = Anchor::Start;
@@ -35,13 +43,12 @@ pub(super) fn process(line: &'_ str) -> Expression {
                     sub_pattern: SubPattern::Dot,
                     repetition: check_repetition(&mut iter),
                 },
-                // need to include other ascii char too later
-                'a'..='z' | '0'..='9' | 'A'..='Z' => Pattern {
-                    sub_pattern: SubPattern::Char(ch),
-                    repetition: check_repetition(&mut iter),
-                },
                 '[' => Pattern {
                     sub_pattern: scan_bracketed_expression(&mut iter),
+                    repetition: check_repetition(&mut iter),
+                },
+                x if NORMAL_CHAR.binary_search(&x).is_ok() => Pattern {
+                    sub_pattern: SubPattern::Char(ch),
                     repetition: check_repetition(&mut iter),
                 },
                 _ => unreachable!("Lets see what is that: {:#?}", (ch, iter)),

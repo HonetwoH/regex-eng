@@ -141,4 +141,45 @@ mod test {
         );
         assert_eq!(scanner::process(exp), ans);
     }
+
+    #[test]
+    fn parsing_email() {
+        let exp = r"^[a-z]+@[a-z]+\.[a-z]{2,8}$";
+        let ans = (
+            Anchor::Both,
+            vec![
+                Pattern {
+                    sub_pattern: SubPattern::BracketedSet(vec![Sets::CustomRange(Range {
+                        start: 'a',
+                        end: 'z',
+                    })]),
+                    repetition: Repetition::AtLeastOnce,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::Char('@'),
+                    repetition: Repetition::None,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::BracketedSet(vec![Sets::CustomRange(Range {
+                        start: 'a',
+                        end: 'z',
+                    })]),
+                    repetition: Repetition::AtLeastOnce,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::Char('.'),
+                    repetition: Repetition::None,
+                },
+                Pattern {
+                    sub_pattern: SubPattern::BracketedSet(vec![Sets::CustomRange(Range {
+                        start: 'a',
+                        end: 'z',
+                    })]),
+                    repetition: Repetition::InRange(2, 8),
+                },
+            ],
+        );
+
+        assert_eq!(scanner::process(exp), ans);
+    }
 }
