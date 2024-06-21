@@ -2,6 +2,18 @@
 
 pub(crate) type Expression = (Anchor, Vec<Pattern>);
 
+//TODO: need to to add other context
+#[derive(Debug)]
+enum ParsingError {
+    NotAsciiCharacter,
+    MisusedAnchorChracter,
+    NotTerminatedProperly,
+    UnknownGuardCharacter,
+    MalformedExpression,
+    UnknownPredefinedSetName,
+    NotANumber,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Pattern {
     sub_pattern: SubPattern,
@@ -96,7 +108,7 @@ mod test {
             ],
         );
 
-        assert_eq!(parser::process(exp), ans);
+        assert_eq!(parser::process(exp).unwrap(), ans);
     }
 
     #[test]
@@ -135,7 +147,7 @@ mod test {
                 },
             ],
         );
-        assert_eq!(parser::process(exp), ans);
+        assert_eq!(parser::process(exp).unwrap(), ans);
     }
 
     #[test]
@@ -167,7 +179,7 @@ mod test {
             ],
         );
 
-        assert_eq!(parser::process(exp), ans);
+        assert_eq!(parser::process(exp).unwrap(), ans);
     }
 
     #[test]
@@ -199,6 +211,6 @@ mod test {
             ],
         );
 
-        assert_eq!(parser::process(exp), ans);
+        assert_eq!(parser::process(exp).unwrap(), ans);
     }
 }
