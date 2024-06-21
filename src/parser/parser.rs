@@ -161,10 +161,8 @@ fn scan_bracketed_expression(iter: &mut Peekable<Chars<'_>>) -> SubPattern {
                 // this branch check for custom range
                 if look_for('-', iter) {
                     let maybe_upper = iter.next().unwrap();
-                    sets.push(Sets::CustomRange(Range {
-                        start: maybe_lower,
-                        end: maybe_upper,
-                    }));
+                    assert!(maybe_lower < maybe_upper);
+                    sets.push(Sets::CustomRange(Range(maybe_lower, maybe_upper)));
                 } else {
                     // this branch check for custom set
                     if let Some(a_char) = iter.next_if(|&x| x != ']') {
@@ -198,6 +196,8 @@ fn scan_bracketed_expression(iter: &mut Peekable<Chars<'_>>) -> SubPattern {
         SubPattern::BracketedSet(sets)
     }
 }
+
+fn check_alternation(iter: &mut Peekable<Chars<'_>>) {}
 
 #[inline]
 fn match_name_of_set(name: Vec<char>) -> PredefinedSet {
@@ -293,7 +293,7 @@ fn exact_repetitions(iter: &mut Peekable<Chars<'_>>) -> Repetition {
 #[cfg(test)]
 mod test {
     use super::process;
-    use crate::scanner::*;
+    use crate::parser::*;
 
     #[test]
     fn test_exact_repetition_1() {
@@ -443,10 +443,7 @@ mod test {
         let ans = (
             Anchor::None,
             vec![Pattern {
-                sub_pattern: SubPattern::BracketedSet(vec![Sets::CustomRange(Range {
-                    start: 'a',
-                    end: 'z',
-                })]),
+                sub_pattern: SubPattern::BracketedSet(vec![Sets::CustomRange(Range('a', 'z'))]),
                 repetition: Repetition::None,
             }],
         );
@@ -462,18 +459,9 @@ mod test {
             Anchor::None,
             vec![Pattern {
                 sub_pattern: SubPattern::BracketedSet(vec![
-                    Sets::CustomRange(Range {
-                        start: 'a',
-                        end: 'z',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: 'A',
-                        end: 'Z',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: '0',
-                        end: '9',
-                    }),
+                    Sets::CustomRange(Range('a', 'z')),
+                    Sets::CustomRange(Range('A', 'Z')),
+                    Sets::CustomRange(Range('0', '9')),
                 ]),
                 repetition: Repetition::None,
             }],
@@ -490,14 +478,8 @@ mod test {
             Anchor::None,
             vec![Pattern {
                 sub_pattern: SubPattern::InvertedSet(vec![
-                    Sets::CustomRange(Range {
-                        start: '0',
-                        end: '9',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: 'a',
-                        end: 'f',
-                    }),
+                    Sets::CustomRange(Range('0', '9')),
+                    Sets::CustomRange(Range('a', 'f')),
                     Sets::PredefinedSets(PredefinedSet::Space),
                     Sets::Custom(vec!['x', 'X']),
                 ]),
@@ -517,18 +499,9 @@ mod test {
             vec![Pattern {
                 sub_pattern: SubPattern::BracketedSet(vec![
                     Sets::Custom(vec!['-']),
-                    Sets::CustomRange(Range {
-                        start: 'a',
-                        end: 'z',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: 'A',
-                        end: 'Z',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: '0',
-                        end: '9',
-                    }),
+                    Sets::CustomRange(Range('a', 'z')),
+                    Sets::CustomRange(Range('A', 'Z')),
+                    Sets::CustomRange(Range('0', '9')),
                 ]),
                 repetition: Repetition::None,
             }],
@@ -545,18 +518,9 @@ mod test {
             Anchor::None,
             vec![Pattern {
                 sub_pattern: SubPattern::BracketedSet(vec![
-                    Sets::CustomRange(Range {
-                        start: 'a',
-                        end: 'z',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: 'A',
-                        end: 'Z',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: '0',
-                        end: '9',
-                    }),
+                    Sets::CustomRange(Range('a', 'z')),
+                    Sets::CustomRange(Range('A', 'Z')),
+                    Sets::CustomRange(Range('0', '9')),
                     Sets::Custom(vec!['-']),
                 ]),
                 repetition: Repetition::None,
@@ -574,18 +538,9 @@ mod test {
             Anchor::None,
             vec![Pattern {
                 sub_pattern: SubPattern::BracketedSet(vec![
-                    Sets::CustomRange(Range {
-                        start: 'a',
-                        end: 'e',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: 'A',
-                        end: 'Z',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: '0',
-                        end: '9',
-                    }),
+                    Sets::CustomRange(Range('a', 'e')),
+                    Sets::CustomRange(Range('A', 'Z')),
+                    Sets::CustomRange(Range('0', '9')),
                     Sets::Custom(vec!['a', 'c', '-']),
                 ]),
                 repetition: Repetition::None,
@@ -603,18 +558,9 @@ mod test {
             Anchor::None,
             vec![Pattern {
                 sub_pattern: SubPattern::BracketedSet(vec![
-                    Sets::CustomRange(Range {
-                        start: 'a',
-                        end: 'e',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: 'A',
-                        end: 'Z',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: '0',
-                        end: '9',
-                    }),
+                    Sets::CustomRange(Range('a', 'e')),
+                    Sets::CustomRange(Range('A', 'Z')),
+                    Sets::CustomRange(Range('0', '9')),
                     Sets::Custom(vec!['\\', 'a', 'c', '-']),
                 ]),
                 repetition: Repetition::None,
@@ -632,18 +578,9 @@ mod test {
             Anchor::None,
             vec![Pattern {
                 sub_pattern: SubPattern::BracketedSet(vec![
-                    Sets::CustomRange(Range {
-                        start: 'a',
-                        end: 'e',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: 'A',
-                        end: 'Z',
-                    }),
-                    Sets::CustomRange(Range {
-                        start: '0',
-                        end: '9',
-                    }),
+                    Sets::CustomRange(Range('a', 'e')),
+                    Sets::CustomRange(Range('A', 'Z')),
+                    Sets::CustomRange(Range('0', '9')),
                     Sets::Custom(vec![']', 'a', 'c', '-']),
                 ]),
                 repetition: Repetition::None,
