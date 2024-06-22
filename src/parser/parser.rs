@@ -1,4 +1,4 @@
-use core::panic;
+use std::fmt::Debug;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -6,27 +6,23 @@ use super::{
     Anchor, Expression, ParsingError, Pattern, PredefinedSet, Range, Repetition, Sets, SubPattern,
 };
 
+const NORMAL_CHAR: [char; 80] = [
+    ' ', '!', '"', '#', '%', '&', '\'', ',', '-', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8',
+    '9', ':', ';', '<', '=', '>', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
+    'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '_', '`', 'a', 'b', 'c',
+    'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+    'w', 'x', 'y', 'z',
+];
+
 pub(super) fn process(line: &'_ str) -> Result<Expression, ParsingError> {
     let mut iter = line.chars().peekable();
     let mut expression: Expression = (Anchor::None, Vec::new());
 
-    const NORMAL_CHAR: [char; 80] = [
-        ' ', '!', '"', '#', '%', '&', '\'', ',', '-', '/', '0', '1', '2', '3', '4', '5', '6', '7',
-        '8', '9', ':', ';', '<', '=', '>', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '_', '`',
-        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
-        's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-    ];
-
     let mut anchor: Anchor = Anchor::None;
-    if let Some('^') = iter.peek() {
-        anchor = Anchor::Start;
-        let _ = iter.next();
-    };
-
     let mut escaped: bool = false;
 
-    while let Some(ch) = iter.next_if(|&x| x != '$') {
+    // We could change this check for '$' and  maybe
+    while let Some(ch) = iter.next() {
         let pattern: Pattern;
 
         if escaped {
@@ -41,12 +37,40 @@ pub(super) fn process(line: &'_ str) -> Result<Expression, ParsingError> {
                     escaped = true;
                     continue;
                 }
+                sym @ ('^' | '$') => {
+                    use Anchor::*;
+                    match (sym, anchor) {
+                        ('^', None) => {
+                            anchor = Start;
+                            continue;
+                        }
+                        ('^', Start) | ('^', End) | ('^', Both) => {
+                            return Err(ParsingError::MisusedAnchorChracter)
+                        }
+                        ('$', None) => {
+                            anchor = End;
+                            continue;
+                        }
+                        ('$', Start) => {
+                            anchor = Both;
+                            continue;
+                        }
+                        ('$', End) | ('$', Both) => {
+                            return Err(ParsingError::MisusedAnchorChracter)
+                        }
+                        _ => unreachable!(),
+                    }
+                }
                 '.' => Pattern {
                     sub_pattern: SubPattern::Dot,
                     repetition: check_repetition(&mut iter)?,
                 },
                 '[' => Pattern {
                     sub_pattern: scan_bracketed_expression(&mut iter)?,
+                    repetition: check_repetition(&mut iter)?,
+                },
+                '(' => Pattern {
+                    sub_pattern: check_alternation(&mut iter)?,
                     repetition: check_repetition(&mut iter)?,
                 },
                 x if NORMAL_CHAR.binary_search(&x).is_ok() => Pattern {
@@ -61,29 +85,13 @@ pub(super) fn process(line: &'_ str) -> Result<Expression, ParsingError> {
         }
         expression.1.push(pattern);
     }
-
-    if let Some('$') = iter.peek() {
-        match anchor {
-            Anchor::Start => {
-                anchor = Anchor::Both;
-            }
-            Anchor::None => {
-                anchor = Anchor::End;
-            }
-            _ => {
-                dbg!("Some problem in anchor: {:#?}", &anchor);
-                return Err(ParsingError::MisusedAnchorChracter);
-            }
-        };
-        let _ = iter.next();
-    };
-
     expression.0 = anchor;
     Ok(expression)
 }
 
+// this function is impure in one branch only
 #[inline]
-fn look_for(ch: char, iter: &mut Peekable<Chars<'_>>) -> bool {
+fn look_for<I: Iterator<Item = char> + Debug>(ch: char, iter: &mut Peekable<I>) -> bool {
     if let Some(temp) = iter.peek() {
         if *temp == ch {
             let _ = iter.next();
@@ -96,42 +104,95 @@ fn look_for(ch: char, iter: &mut Peekable<Chars<'_>>) -> bool {
     }
 }
 
-#[inline]
-fn get_predefined_set<'a>(iter: &mut Peekable<Chars<'_>>) -> Result<Sets, ParsingError> {
-    // consuming ':'
-    let _ = iter.next();
+fn check_alternation(iter: &mut Peekable<Chars<'_>>) -> Result<SubPattern, ParsingError> {
+    // make sequence out of iter till the next
 
-    // take all the characters till :
-    let mut predefined_set_name = Vec::with_capacity(6);
+    let mut alternates: Vec<Vec<char>> = Vec::new();
+    alternates.push(Vec::new());
 
-    while let Some(c) = iter.next_if(|&x| x.is_alphabetic() && x != ':') {
-        predefined_set_name.push(c);
+    while let Some(ch) = iter.next() {
+        match ch {
+            '|' => {
+                // create a new entry
+                alternates.push(Vec::new());
+            }
+            ')' => {
+                // mark done
+                break;
+            }
+            x @ _ => {
+                // collect the char
+                if let Some(last) = alternates.last_mut() {
+                    last.push(x);
+                } else {
+                    panic!("The alternates were empty");
+                }
+            }
+        }
     }
 
-    let set = match_name_of_set(predefined_set_name)?;
-    let name_terminated_properly = look_for(':', iter) && look_for(']', iter);
+    Ok(SubPattern::Alternative(process_subset(alternates)?))
+}
 
-    if !name_terminated_properly {
-        dbg!("The expression is not valid check the if the brackets where close properly");
-        return Err(ParsingError::NotTerminatedProperly);
+fn process_subset(alternates: Vec<Vec<char>>) -> Result<Vec<Vec<Pattern>>, ParsingError> {
+    let mut parsed_alternatives = Vec::new();
+    let mut escaped: bool = false;
+    // We could change this check for '$' and  maybe
+    let iters = alternates
+        .into_iter()
+        .map(|iter| iter.into_iter().peekable());
+    for mut iter in iters {
+        let mut alternate = Vec::new();
+        while let Some(ch) = iter.next() {
+            let pattern: Pattern;
+
+            if escaped {
+                escaped = false;
+                pattern = Pattern {
+                    sub_pattern: SubPattern::Char(ch),
+                    repetition: check_repetition(&mut iter)?,
+                };
+            } else {
+                pattern = match ch {
+                    '\\' => {
+                        escaped = true;
+                        continue;
+                    }
+                    '.' => Pattern {
+                        sub_pattern: SubPattern::Dot,
+                        repetition: check_repetition(&mut iter)?,
+                    },
+                    '[' => Pattern {
+                        sub_pattern: scan_bracketed_expression(&mut iter)?,
+                        repetition: check_repetition(&mut iter)?,
+                    },
+                    x if NORMAL_CHAR.binary_search(&x).is_ok() => Pattern {
+                        sub_pattern: SubPattern::Char(ch),
+                        repetition: check_repetition(&mut iter)?,
+                    },
+                    _ => {
+                        dbg!("Lets see what is that: {:#?}", (ch, &iter));
+                        return Err(ParsingError::NotAsciiCharacter);
+                    }
+                };
+            }
+            alternate.push(pattern);
+        }
+        parsed_alternatives.push(alternate);
     }
-
-    Ok(Sets::PredefinedSets(set))
+    Ok(parsed_alternatives)
 }
 
 #[inline] // take for example [[:punct:]A-Mm-z ]
-fn scan_bracketed_expression(iter: &mut Peekable<Chars<'_>>) -> Result<SubPattern, ParsingError> {
+fn scan_bracketed_expression<I: Iterator<Item = char> + Debug>(
+    iter: &mut Peekable<I>,
+) -> Result<SubPattern, ParsingError> {
     // checking for inverted
     let inverted = look_for('^', iter);
 
-    // container for all sets in the bracket
     let mut sets: Vec<Sets> = Vec::new();
 
     while iter.peek().is_some() {
-        // check for predefined set or custom set
-        // [[:lower:]] or [[:alnum:]] or [[:alpha:]] are predefined notice that
-        // apart from 1 variant which is `Xdigit` all are 5 character long
-        // !!!!!!!!!! very dangerous line down here
         if look_for('[', iter) {
             match iter.peek() {
                 Some(':') => sets.push(get_predefined_set(iter)?),
@@ -174,22 +235,24 @@ fn scan_bracketed_expression(iter: &mut Peekable<Chars<'_>>) -> Result<SubPatter
                 // this branch check for custom range
                 if look_for('-', iter) {
                     let maybe_upper = iter.next().unwrap();
-                    assert!(maybe_lower < maybe_upper);
+                    if !(maybe_lower < maybe_upper) {
+                        return Err(ParsingError::IncorrectRepetitionLimits);
+                    }
                     sets.push(Sets::CustomRange(Range(maybe_lower, maybe_upper)));
                 } else {
                     // this branch check for custom set
                     if let Some(a_char) = iter.next_if(|&x| x != ']') {
                         match sets.last_mut() {
-                            Some(Sets::Custom(x)) => {
-                                x.push(maybe_lower);
-                                x.push(a_char);
+                            Some(Sets::Custom(last)) => {
+                                last.push(maybe_lower);
+                                last.push(a_char);
                             }
                             _ => sets.push(Sets::Custom(vec![maybe_lower, a_char])),
                         }
                     } else {
                         match sets.last_mut() {
-                            Some(Sets::Custom(x)) => {
-                                x.push(maybe_lower);
+                            Some(Sets::Custom(last)) => {
+                                last.push(maybe_lower);
                             }
                             _ => sets.push(Sets::Custom(vec![maybe_lower])),
                         }
@@ -210,7 +273,30 @@ fn scan_bracketed_expression(iter: &mut Peekable<Chars<'_>>) -> Result<SubPatter
     }
 }
 
-fn check_alternation(iter: &mut Peekable<Chars<'_>>) {}
+#[inline]
+fn get_predefined_set<I: Iterator<Item = char> + Debug>(
+    iter: &mut Peekable<I>,
+) -> Result<Sets, ParsingError> {
+    // consuming ':'
+    let _ = iter.next();
+
+    // take all the characters till :
+    let mut predefined_set_name = Vec::with_capacity(6);
+
+    while let Some(c) = iter.next_if(|&x| x.is_alphabetic() && x != ':') {
+        predefined_set_name.push(c);
+    }
+
+    let set = match_name_of_set(predefined_set_name)?;
+    let name_terminated_properly = look_for(':', iter) && look_for(']', iter);
+
+    if !name_terminated_properly {
+        dbg!("The expression is not valid check the if the brackets where close properly");
+        return Err(ParsingError::NotTerminatedProperly);
+    }
+
+    Ok(Sets::PredefinedSets(set))
+}
 
 #[inline]
 fn match_name_of_set(name: Vec<char>) -> Result<PredefinedSet, ParsingError> {
@@ -236,7 +322,9 @@ fn match_name_of_set(name: Vec<char>) -> Result<PredefinedSet, ParsingError> {
 }
 
 #[inline]
-fn check_repetition(iter: &mut Peekable<Chars<'_>>) -> Result<Repetition, ParsingError> {
+fn check_repetition<I: Iterator<Item = char> + Debug>(
+    iter: &mut Peekable<I>,
+) -> Result<Repetition, ParsingError> {
     match iter.peek() {
         Some('+') => {
             let _ = iter.next();
@@ -256,7 +344,9 @@ fn check_repetition(iter: &mut Peekable<Chars<'_>>) -> Result<Repetition, Parsin
 }
 
 #[inline]
-fn exact_repetitions(iter: &mut Peekable<Chars<'_>>) -> Result<Repetition, ParsingError> {
+fn exact_repetitions<I: Iterator<Item = char> + Debug>(
+    iter: &mut Peekable<I>,
+) -> Result<Repetition, ParsingError> {
     let mut number_string = [String::new(), String::new()];
     let mut current_number = 0;
     let mut is_exact = true;
@@ -348,7 +438,7 @@ mod test {
     }
 
     #[test]
-    fn test_exact_repetition_2() {
+    fn test_exact_reptition_2() {
         let expr = "1{,25}";
         let ans = (
             Anchor::None,

@@ -2,7 +2,7 @@
 
 pub(crate) type Expression = (Anchor, Vec<Pattern>);
 
-//TODO: need to to add other context
+//TODO: need to to add other context, this is not helpful in current state
 #[derive(Debug)]
 enum ParsingError {
     NotAsciiCharacter,
@@ -12,6 +12,7 @@ enum ParsingError {
     MalformedExpression,
     UnknownPredefinedSetName,
     NotANumber,
+    IncorrectRepetitionLimits,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -28,6 +29,7 @@ enum SubPattern {
     // InvertedChar(char), //TODO: check if this is correct according to spec
     BracketedSet(Vec<Sets>),
     InvertedSet(Vec<Sets>),
+    Alternative(Vec<Vec<Pattern>>),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -183,34 +185,44 @@ mod test {
     }
 
     #[test]
-    fn parsing_url() {
-        let exp = r"https?://([[:alnum:]]+){3,8}";
+    fn alternations() {
+        let exp = r"(cat|dog)*";
         let ans = (
-            Anchor::Both,
-            vec![
-                Pattern {
-                    sub_pattern: SubPattern::BracketedSet(vec![Sets::CustomRange(Range('a', 'z'))]),
-                    repetition: Repetition::AtLeastOnce,
-                },
-                Pattern {
-                    sub_pattern: SubPattern::Char('@'),
-                    repetition: Repetition::None,
-                },
-                Pattern {
-                    sub_pattern: SubPattern::BracketedSet(vec![Sets::CustomRange(Range('a', 'z'))]),
-                    repetition: Repetition::AtLeastOnce,
-                },
-                Pattern {
-                    sub_pattern: SubPattern::Char('.'),
-                    repetition: Repetition::None,
-                },
-                Pattern {
-                    sub_pattern: SubPattern::BracketedSet(vec![Sets::CustomRange(Range('a', 'z'))]),
-                    repetition: Repetition::InRange(2, 8),
-                },
-            ],
+            Anchor::None,
+            vec![Pattern {
+                sub_pattern: SubPattern::Alternative(vec![
+                    vec![
+                        Pattern {
+                            sub_pattern: SubPattern::Char('c'),
+                            repetition: Repetition::None,
+                        },
+                        Pattern {
+                            sub_pattern: SubPattern::Char('a'),
+                            repetition: Repetition::None,
+                        },
+                        Pattern {
+                            sub_pattern: SubPattern::Char('t'),
+                            repetition: Repetition::None,
+                        },
+                    ],
+                    vec![
+                        Pattern {
+                            sub_pattern: SubPattern::Char('d'),
+                            repetition: Repetition::None,
+                        },
+                        Pattern {
+                            sub_pattern: SubPattern::Char('o'),
+                            repetition: Repetition::None,
+                        },
+                        Pattern {
+                            sub_pattern: SubPattern::Char('g'),
+                            repetition: Repetition::None,
+                        },
+                    ],
+                ]),
+                repetition: Repetition::ZeroOrMore,
+            }],
         );
-
         assert_eq!(parser::process(exp).unwrap(), ans);
     }
 }
