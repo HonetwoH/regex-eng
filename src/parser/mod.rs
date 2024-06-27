@@ -4,7 +4,7 @@ pub(crate) type Expression = (Anchor, Vec<Pattern>);
 
 //TODO: need to to add other context, this is not helpful in current state
 #[derive(Debug)]
-enum ParsingError {
+pub(crate) enum ParsingError {
     NotAsciiCharacter,
     MisusedAnchorChracter,
     NotTerminatedProperly,
@@ -17,13 +17,13 @@ enum ParsingError {
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Pattern {
-    sub_pattern: SubPattern,
-    repetition: Repetition,
+    pub(crate) sub_pattern: SubPattern,
+    pub(crate) repetition: Repetition,
 }
 
 // SubPattern together form Pattern
 #[derive(Debug, PartialEq, Eq)]
-enum SubPattern {
+pub(crate) enum SubPattern {
     Dot,
     Char(char),
     // InvertedChar(char), //TODO: check if this is correct according to spec
@@ -33,14 +33,14 @@ enum SubPattern {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-enum Sets {
+pub(crate) enum Sets {
     PredefinedSets(PredefinedSet),
     CustomRange(Range),
     Custom(Vec<char>),
 }
 
 #[derive(Debug, PartialEq, Eq)]
-enum PredefinedSet {
+pub(crate) enum PredefinedSet {
     AlNum, // that is the name used in `info grep`
     Alpha,
     Blank, // TODO: how is that different from the space
@@ -57,7 +57,7 @@ enum PredefinedSet {
 
 // The custom range will be like this [0-5] [4-9]
 #[derive(Debug, PartialEq, Eq)]
-struct Range(char, char);
+pub(crate) struct Range(pub(crate) char, pub(crate) char);
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Anchor {
@@ -68,7 +68,7 @@ pub(crate) enum Anchor {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-enum Repetition {
+pub(crate) enum Repetition {
     AtMostOnce,            // ?
     AtLeastOnce,           // +
     ZeroOrMore,            // *
@@ -79,7 +79,32 @@ enum Repetition {
     None,
 }
 
-mod parser;
+// impl Display for ParsingError {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         writeln!(
+//             f,
+//             {
+//                 use ParsingError::*;
+//                 match self {
+//                     NotAsciiCharacter,
+//                     MisusedAnchorChracter,
+//                     NotTerminatedProperly,
+//                     UnknownGuardCharacter,
+//                     MalformedExpression,
+//                     UnknownPredefinedSetName,
+//                     NotANumber,
+//                     IncorrectRepetitionLimits,
+//                 }
+//             }
+//         )
+//     }
+// }
+
+mod parse;
+
+pub(crate) fn process(line: &'_ str) -> Result<Expression, ParsingError> {
+    parse::process(line)
+}
 
 #[cfg(test)]
 mod test {
@@ -110,7 +135,7 @@ mod test {
             ],
         );
 
-        assert_eq!(parser::process(exp).unwrap(), ans);
+        assert_eq!(process(exp).unwrap(), ans);
     }
 
     #[test]
@@ -149,7 +174,7 @@ mod test {
                 },
             ],
         );
-        assert_eq!(parser::process(exp).unwrap(), ans);
+        assert_eq!(process(exp).unwrap(), ans);
     }
 
     #[test]
@@ -181,7 +206,7 @@ mod test {
             ],
         );
 
-        assert_eq!(parser::process(exp).unwrap(), ans);
+        assert_eq!(process(exp).unwrap(), ans);
     }
 
     #[test]
@@ -223,6 +248,6 @@ mod test {
                 repetition: Repetition::ZeroOrMore,
             }],
         );
-        assert_eq!(parser::process(exp).unwrap(), ans);
+        assert_eq!(process(exp).unwrap(), ans);
     }
 }

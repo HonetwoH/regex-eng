@@ -91,16 +91,19 @@ pub(super) fn process(line: &'_ str) -> Result<Expression, ParsingError> {
 
 // this function is impure in one branch only
 #[inline]
-fn look_for<I: Iterator<Item = char> + Debug>(ch: char, iter: &mut Peekable<I>) -> bool {
+fn look_for<I: Iterator<Item = char> + Debug>(
+    ch: char,
+    iter: &mut Peekable<I>,
+) -> Result<bool, ParsingError> {
     if let Some(temp) = iter.peek() {
         if *temp == ch {
             let _ = iter.next();
-            true
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     } else {
-        panic!("The regex ended here, it is invalid");
+        Err(ParsingError::MalformedExpression)
     }
 }
 
@@ -110,7 +113,7 @@ fn check_alternation(iter: &mut Peekable<Chars<'_>>) -> Result<SubPattern, Parsi
     let mut alternates: Vec<Vec<char>> = Vec::new();
     alternates.push(Vec::new());
 
-    while let Some(ch) = iter.next() {
+    for ch in iter.by_ref() {
         match ch {
             '|' => {
                 // create a new entry
@@ -120,7 +123,7 @@ fn check_alternation(iter: &mut Peekable<Chars<'_>>) -> Result<SubPattern, Parsi
                 // mark done
                 break;
             }
-            x @ _ => {
+            x => {
                 // collect the char
                 if let Some(last) = alternates.last_mut() {
                     last.push(x);
@@ -188,12 +191,12 @@ fn scan_bracketed_expression<I: Iterator<Item = char> + Debug>(
     iter: &mut Peekable<I>,
 ) -> Result<SubPattern, ParsingError> {
     // checking for inverted
-    let inverted = look_for('^', iter);
+    let inverted = look_for('^', iter)?;
 
     let mut sets: Vec<Sets> = Vec::new();
 
     while iter.peek().is_some() {
-        if look_for('[', iter) {
+        if look_for('[', iter)? {
             match iter.peek() {
                 Some(':') => sets.push(get_predefined_set(iter)?),
 
@@ -210,7 +213,7 @@ fn scan_bracketed_expression<I: Iterator<Item = char> + Debug>(
                     return Err(ParsingError::UnknownGuardCharacter);
                 }
             }
-        } else if look_for('\\', iter) {
+        } else if look_for('\\', iter)? {
             if let Some(c) = iter.next() {
                 match sets.last_mut() {
                     Some(Sets::Custom(x)) => {
@@ -222,7 +225,7 @@ fn scan_bracketed_expression<I: Iterator<Item = char> + Debug>(
                 dbg!("invalid escaping: {:#?}", &iter);
                 return Err(ParsingError::MalformedExpression);
             }
-        } else if look_for('-', iter) {
+        } else if look_for('-', iter)? {
             match sets.last_mut() {
                 Some(Sets::Custom(x)) => {
                     x.push('-');
@@ -233,9 +236,9 @@ fn scan_bracketed_expression<I: Iterator<Item = char> + Debug>(
             // this can be both Custom and Custom Range need to figure out which is which
             if let Some(maybe_lower) = iter.next() {
                 // this branch check for custom range
-                if look_for('-', iter) {
+                if look_for('-', iter)? {
                     let maybe_upper = iter.next().unwrap();
-                    if !(maybe_lower < maybe_upper) {
+                    if maybe_lower >= maybe_upper {
                         return Err(ParsingError::IncorrectRepetitionLimits);
                     }
                     sets.push(Sets::CustomRange(Range(maybe_lower, maybe_upper)));
@@ -261,7 +264,7 @@ fn scan_bracketed_expression<I: Iterator<Item = char> + Debug>(
             }
         }
 
-        if look_for(']', iter) {
+        if look_for(']', iter)? {
             break;
         }
     }
@@ -288,7 +291,7 @@ fn get_predefined_set<I: Iterator<Item = char> + Debug>(
     }
 
     let set = match_name_of_set(predefined_set_name)?;
-    let name_terminated_properly = look_for(':', iter) && look_for(']', iter);
+    let name_terminated_properly = look_for(':', iter)? && look_for(']', iter)?;
 
     if !name_terminated_properly {
         dbg!("The expression is not valid check the if the brackets where close properly");
